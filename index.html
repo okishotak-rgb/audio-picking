@@ -13,8 +13,8 @@
         .card { background: #e9ecef; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
         .card div { margin-bottom: 5px; font-size: 16px; }
         .controls { display: flex; justify-content: space-between; gap: 10px; }
-        .controls button { flex: 1; background: #28a745; }
-        .controls button:disabled { background: #ccc; }
+        .controls button { flex: 1; background: #28a745; font-size: 16px; color: white; border: none; border-radius: 5px; padding: 12px; font-weight: bold; cursor: pointer; }
+        .controls button:disabled { background: #ccc; cursor: not-allowed; }
         .status { text-align: center; font-weight: bold; margin-bottom: 10px; color: #6c757d; }
     </style>
 </head>
@@ -46,15 +46,14 @@ BOSE,QuietComfort,イヤホン,2</textarea>
     let currentIndex = 0;
     let isPlaying = false;
     const synth = window.speechSynthesis;
-    let currentUtterance = null;
 
     function loadCSV() {
         const text = document.getElementById('csvInput').value;
         items = text.split('\n').map(row => {
             const cols = row.split(',');
-            if (cols.count < 4) return null;
-            return { mfg: cols[0]?.trim(), part: cols[1]?.trim(), name: cols[2]?.trim(), qty: cols[3]?.trim() };
-        }).filter(item => item && item.mfg);
+            if (cols.length < 4) return null;
+            return { mfg: cols[0].trim(), part: cols[1].trim(), name: cols[2].trim(), qty: cols[3].trim() };
+        }).filter(item => item !== null);
 
         if (items.length > 0) {
             currentIndex = 0;
@@ -63,6 +62,8 @@ BOSE,QuietComfort,イヤホン,2</textarea>
             updateUI();
             document.getElementById('btnPlay').disabled = false;
             setupMediaSession();
+        } else {
+            alert("CSVデータの形式が正しくありません。「メーカー,品番,商品名,数量」の順に入力してください。");
         }
     }
 
@@ -89,16 +90,16 @@ BOSE,QuietComfort,イヤホン,2</textarea>
 
     function speakCurrent() {
         synth.cancel();
-        if (currentIndex >= items.count) { isPlaying = false; updatePlayButton(); return; }
+        if (currentIndex >= items.length) { isPlaying = false; updatePlayButton(); return; }
         
         const item = items[currentIndex];
         const text = `メーカー、${item.mfg}。品番、${item.part}。商品名、${item.name}。数量、${item.qty}。`;
         
-        currentUtterance = new AVSpeechUtterance ? new SpeechSynthesisUtterance(text) : new SpeechSynthesisUtterance(text);
-        currentUtterance.lang = 'ja-JP';
-        currentUtterance.rate = 0.9;
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'ja-JP';
+        utterance.rate = 0.9;
 
-        currentUtterance.onend = () => {
+        utterance.onend = () => {
             if (isPlaying && currentIndex < items.length - 1) {
                 currentIndex++;
                 updateUI();
@@ -109,19 +110,15 @@ BOSE,QuietComfort,イヤホン,2</textarea>
             }
         };
 
-        synth.speak(currentUtterance);
+        synth.speak(utterance);
     }
 
     function togglePlay() {
         if (isPlaying) {
-            synth.pause();
+            synth.cancel();
             isPlaying = false;
         } else {
-            if (synth.paused) {
-                synth.resume();
-            } else {
-                speakCurrent();
-            }
+            speakCurrent();
             isPlaying = true;
         }
         updatePlayButton();
